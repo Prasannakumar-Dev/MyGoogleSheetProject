@@ -1,9 +1,11 @@
 const { fetchSheetData } = require("./controllers/googleSheets");
 const {
   createEmployeeTable,
-  insertEmployee,
+  insertEmployees,
   closePool,
 } = require("./controllers/postgres");
+
+const BATCH_SIZE = 10; // Number of employees to process in each batch
 
 async function main() {
   try {
@@ -11,13 +13,16 @@ async function main() {
 
     const data = await fetchSheetData();
 
-    // 1st row is headers, remove it
+    // Assuming the first row contains headers, remove it
     const employees = data.slice(1);
 
-    for (let employee of employees) {
-      await insertEmployee(employee);
+    // Process employees in batches
+    for (let i = 0; i < employees.length; i += BATCH_SIZE) {
+      const batch = employees.slice(i, i + BATCH_SIZE);
+      await insertEmployees(batch);
     }
-    console.log("All employees inserted successfully");
+
+    console.log("All employees processed successfully");
   } catch (error) {
     console.error("Error:", error);
   } finally {

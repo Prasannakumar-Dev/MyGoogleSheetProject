@@ -18,53 +18,39 @@ async function createEmployeeTable() {
         phone_number VARCHAR(15) UNIQUE
       );
     `);
-    console.log("Employee table created successfully");
+    console.log('Employee table created successfully');
   } catch (e) {
-    console.error("Error creating employee table:", e);
+    console.error('Error creating employee table:', e);
   } finally {
     client.release();
   }
 }
 
-async function insertEmployee(data) {
+async function insertEmployees(batch) {
   const client = await pool.connect();
-  const [
-    first_name,
-    last_name,
-    position,
-    department,
-    email,
-    phone_number,
-  ] = data;
   try {
-    const duplicateExists = await client.query(
-      `SELECT employee_id FROM employees WHERE email = $1 OR phone_number = $2`,
-      [email, phone_number]
-    );
+    for (const data of batch) {
+      const [first_name, last_name, position, department, email, phone_number] = data;
 
-    if (duplicateExists.rows.length > 0) {
-      // Check if any rows are returned
-      console.log(
-        `Employee with email ${email} or phone number ${phone_number} already exists. Skipping.`
+      const duplicateExists = await client.query(
+        `SELECT employee_id FROM employees WHERE email = $1 OR phone_number = $2`,
+        [email, phone_number]
       );
-    } else {
-      const insertQuery = `
-        INSERT INTO employees (first_name, last_name, position, department, email, phone_number)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING employee_id;
-      `;
-      const res = await client.query(insertQuery, [
-        first_name,
-        last_name,
-        position,
-        department,
-        email,
-        phone_number,
-      ]);
-      console.log("New employee ID:", res.rows[0].employee_id);
+
+      if (duplicateExists.rows.length > 0) {
+        console.log(`Employee with email ${email} or phone number ${phone_number} already exists. Skipping.`);
+      } else {
+        const insertQuery = `
+          INSERT INTO employees (first_name, last_name, position, department, email, phone_number)
+          VALUES ($1, $2, $3, $4, $5, $6)
+          RETURNING employee_id;
+        `;
+        const res = await client.query(insertQuery, [first_name, last_name, position, department, email, phone_number]);
+        console.log("New employee ID:", res.rows[0].employee_id);
+      }
     }
   } catch (e) {
-    console.error("Error inserting employee:", e);
+    console.error("Error inserting employees:", e);
   } finally {
     client.release();
   }
@@ -74,4 +60,4 @@ async function closePool() {
   await pool.end();
 }
 
-module.exports = { createEmployeeTable, insertEmployee, closePool };
+module.exports = { createEmployeeTable, insertEmployees, closePool };
